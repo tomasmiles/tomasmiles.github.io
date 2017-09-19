@@ -35,8 +35,6 @@ input.calculateVector = function() {
 var lastFrame = Date.now();
 var delta = 0;
 
-var elapsed = 0;
-
 var sprites =  new Object();
 
 function createSprite(sX, sY, sW, sH) {
@@ -89,9 +87,10 @@ function createAsteroid(x) {
 	newAsteroid.x = x;
 	newAsteroid.y = 0;
 	newAsteroid.xSpeed = (Math.random()*2-1)*10;
-	newAsteroid.ySpeed = Math.random()*10;
+	newAsteroid.ySpeed = Math.random()*50;
+	newAsteroid.width = 10;
 	newAsteroid.draw = function() {
-		sprites.asteroid.draw(this.x, this.y, 10, 10);
+		sprites.asteroid.draw(this.x, this.y, this.width, this.width);
 	}
 	asteroids.push(newAsteroid);
 }
@@ -118,13 +117,31 @@ for(var gt = 0; gt < 40; gt++) {
 
 var city = new Array();
 function initCity() {
-	var citiesPos = [0, 20, 40, 60, 80, 100];
+	var citiesPos = [0, 20, 40, 60, 80, 100, 120, 140, 160, 180, 200, 220, 240, 260, 280, 300, 320, 340, 360, 380];
 	for(var c = 0; c < citiesPos.length; c++) {
 		ground.push(createCityTile(citiesPos[c], 250, true));
 		ground.push(createCityTile(citiesPos[c], 240, false));
 		ground.push(createCityTile(citiesPos[c], 230, false));
 		ground.push(createCityTile(citiesPos[c], 220, false));
 	}
+}
+
+var projectiles = new Array();
+function createProjectile(x, y, xSpeed, ySpeed) {
+	var newProjectile = new Object();
+	newProjectile.x = x;
+	newProjectile.y = y;
+	newProjectile.width = 10;
+	newProjectile.xSpeed = xSpeed;
+	newProjectile.ySpeed = ySpeed;
+	newProjectile.draw = function() {
+		context.fillStyle = "#00FF00";
+		context.fillRect(newProjectile.x, newProjectile.y, newProjectile.width, newProjectile.width);
+	}
+	projectiles.push(newProjectile);
+}
+function  removeProjectile(index) {
+	projectiles.splice(index, 1);
 }
 
 var player = new Object();
@@ -134,26 +151,90 @@ function initPlayer() {
 	player.y = canvas.height/2;
 	player.width =  10;
 	player.speed = 100;
+	player.cooldown = 0;
+	player.cooldownLimit = 400;
 	player.draw = function() {
 		sprites.robot.draw(player.x, player.y, player.width, player.width);
+	}
+	player.fire = function() {
+		if(player.cooldown == 0) {
+			player.cooldown = player.cooldownLimit;
+			createProjectile(player.x, player.y, 0, -100);
+		}
+	}
+	player.reduceCooldown = function(delta) {
+		player.cooldown -= delta;
+		if(player.cooldown < 0) player.cooldown = 0;
 	}
 	player.xVel = 0;
 	player.yVel = 0;
 }
 
+function collideTwoBoxes(x1, y1, w1, h1, x2, y2, w2, h2) {
+	var collided = false;
+	return collided;
+}
+
 function advance() {
-	delta = (Date.now() - lastFrame) / 1000;
+	delta = ((Date.now() - lastFrame)/1000);
 	lastFrame = Date.now();
 	if(!paused) {
+		//Move objects
 		player.x+=(input.x*player.speed*delta);
 		player.y+=(input.y*player.speed*delta);
-
 		for(var a = 0; a < asteroids.length; a++) {
 			asteroids[a].x += asteroids[a].xSpeed*delta;
 			asteroids[a].y += asteroids[a].ySpeed*delta;
-			for(var c = 0; c < city.length; c++) {
+		}
+		for(var pr = 0; pr < projectiles.length; pr++) {
+			projectiles[pr].x += projectiles[pr].xSpeed*delta;
+			projectiles[pr].y += projectiles[pr].ySpeed*delta;
+		}
+		//Collide objects
+		for(var a2 = 0; a2 < asteroids.length; a2++) {
+			var xA = asteroids[a2].x;
+			var yA = asteroids[a2].y;
+			var wA = asteroids[a2].width;
+			var hA = asteroids[a2].width;
+			//Screen bounds
+			if(asteroids[a2].x+asteroids[a2].width < 0 || asteroids[a2].x > canvas.length || asteroids[a2].y+asteroids[a2].width < 0 || asteroids[a2].y > canvas.height) {
+				removeAsteroid(a2);
+			} else {
+				//Player
+				var xP = player.x;
+				var yP = player.y;
+				var wP = player.width;
+				var hP = player.width;
+				console.log(collideTwoBoxes(xA, yA, wA, hA, xP, yP, wP, hP));
+				var playerMidX = player.x + player.width/2;
+				var playerMidY = player.y + player.width/2;
+				var asteroidMidX = asteroids[a2].x + asteroids[a2].width/2;
+				var asteroidMidY = asteroids[a2].y + asteroids[a2].width/2;
+				var xDif = asteroidMidX - playerMidX;
+				var yDif = asteroidMidY - playerMidY;
+				var xCollision = false;
+				var yCollision = false;
+				if(xDif < 0) {
+					if(0 - xDif < asteroids[a2].width/2 + player.width/2) {
+						xCollision = true;
+					}
+				} else if(xDif < asteroids[a2].width/2 + player.width/2) {
+					xCollision = true;
+				}
+				if(yDif < 0) {
+					if(0 - yDif < asteroids[a2].width/2 + player.width/2) {
+						yCollision = true;
+					}
+				} else if(yDif < asteroids[a2].width/2 + player.width/2) {
+						yCollision = true;
+				}
+				var collision = xCollision && yCollision;
+				if(collision) {
+					removeAsteroid(a2);
+				}
 			}
 		}
+		player.reduceCooldown(delta*1000);
 	}
 }
 
@@ -168,10 +249,17 @@ function initGame() {
 }
 
 function clearGame() {
+	ground = null;
+	ground = new Array();
+	city = null;
+	city = new Array();
+	asteroids = null;
+	asteroids = new Array();
+	projectiles = null;
+	projectiles = new Array();
 }
 
 function keyup(event) {
-	//console.log(event);
 	switch(event.key) {
 	case 'a' : input.left = false;
 	break;
@@ -181,13 +269,11 @@ function keyup(event) {
 	break;
 	case 's' : input.down = false;
 	break;
-	
 	};
 	input.calculateVector();
 }
 
 function keydown(event) {
-	//console.log(event);
 	switch(event.key) {
 	case 'a' : input.left = true;
 	break;
@@ -199,8 +285,10 @@ function keydown(event) {
 	break;
 	case 'p' : paused = !paused;
 	break;
-	case 'Escape' : initGame();
-	clearGame();
+	case ' ' : player.fire();
+	break;
+	case 'Escape' : clearGame();
+	initGame();
 	break;
 	};
 	input.calculateVector();
@@ -213,13 +301,16 @@ function draw() {
 		ground[g].draw();
 	}
 	context.strokeStyle = "#FFFFFF";
-	context.strokeText(elapsed, 10, 20);
+	context.strokeText(player.cooldown, 360, 20);
 	player.draw();
 	for(var a = 0; a < asteroids.length; a++) {
 		asteroids[a].draw();
 	}
+	//console.log(projectiles);
+	for(var p = 0; p < projectiles.length; p++) {
+		projectiles[p].draw();
+	}
 }
 
 initGame();
-var loop = setInterval(function(){draw(); advance()}, 15);
-var seconds = setInterval(function(){elapsed++} , 1000);
+var loop = setInterval(function(){draw(); advance()}, 30);
