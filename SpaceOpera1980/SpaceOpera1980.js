@@ -172,6 +172,13 @@ function initPlayer() {
 
 function collideTwoBoxes(x1, y1, w1, h1, x2, y2, w2, h2) {
 	var collided = false;
+	/*
+	What can we derive from the top left corner and width and height of the two boxes?
+	- We have the x and y positions of each corner of each box
+	- We have the bounds of each box
+	How do we see if the boxes intersect?
+	- Compare first and second boxes
+	*/
 	return collided;
 }
 
