@@ -261,7 +261,9 @@ function init() {
 }
 
 function loss() {
-	highScore = score;
+	if(score > highScore) {
+		highScore = score;
+	}
 	isNewGame = true;
 }
 
