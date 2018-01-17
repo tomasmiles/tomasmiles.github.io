@@ -23,6 +23,8 @@ var down = false;
 var score = 0;
 var highScore = 0;
 
+var isNewGame = true;
+
 var player = new Ship(cx/2, cy/2, 10, 20);
 var planets = [];
 var icePlanets = [];
@@ -34,6 +36,7 @@ function Ship(x, y, w, h) {
 	this.y = y;
 	this.width = w;
 	this.height = h;
+	this.hp = 100;
 	this.move = function(mx, my) {
 		var newX = this.x + mx;
 		if(newX > cx) {
@@ -46,6 +49,7 @@ function Ship(x, y, w, h) {
 		var newY = this.y + my;
 		if(newY > cy) {
 			this.y = cy;
+			isNewGame = true;
 		} else if(newY < 0) {
 			this.y = 0;
 		} else {
@@ -61,6 +65,12 @@ function Planet(x, y, w, h, vx, vy) {
 	this.h = h;
 	this.vx = vx;
 	this.vy = vy;
+
+	this.move = function() {
+		var newCoords = translate(this.x, this.y, this.vx, this.vy);
+		this.x = newCoords[0];
+		this.y = newCoords[1];
+	}
 }
 
 function IcePlanet(x, y, w, h, vx, vy) {
@@ -70,6 +80,12 @@ function IcePlanet(x, y, w, h, vx, vy) {
 	this.h = h;
 	this.vx = vx;
 	this.vy = vy;
+
+	this.move = function() {
+		var newCoords = translate(this.x, this.y, this.vx, this.vy);
+		this.x = newCoords[0];
+		this.y = newCoords[1];
+	}
 }
 
 function Asteroid(x, y, w, h, vx, vy) {
@@ -79,6 +95,12 @@ function Asteroid(x, y, w, h, vx, vy) {
 	this.h = h;
 	this.vx = vx;
 	this.vy = vy;
+
+	this.move = function() {
+		var newCoords = translate(this.x, this.y, this.vx, this.vy);
+		this.x = newCoords[0];
+		this.y = newCoords[1];
+	}
 }
 
 function SolarFlare(x, y, w, h, vx, vy) {
@@ -88,6 +110,16 @@ function SolarFlare(x, y, w, h, vx, vy) {
 	this.h = h;
 	this.vx = vx;
 	this.vy = vy;
+
+	this.move = function() {
+		var newCoords = translate(this.x, this.y, this.vx, this.vy);
+		this.x = newCoords[0];
+		this.y = newCoords[1];
+	}
+}
+
+function translate(x, y, vx, vy) {
+	return [x+vx, y+vy];
 }
 
 function drawMagenta(x, y, width, height) {
@@ -162,6 +194,17 @@ function drawIcePlanet(x, y, width, height) {
 	context.drawImage(images, 70, 10, 20, 20, x, y, width, height);
 }
 
+function collide(x1, y1, w1, h1, x2, y2, w2, h2) {
+	var colliding = false;
+	if(x1 < x2 + w2 &&
+	x1 + w1 > x2 &&
+	y1 < y2 + h2 &&
+	y1 + h1 > y2) {
+		colliding = true;
+	}
+	return colliding;
+}
+
 function mouseDown(event) {
 }
 
@@ -178,6 +221,7 @@ function keyDown(event) {
 		break;
 		case "KeyD": right = true;
 		break;
+		case "KeyR": isNewGame = true;
 	}
 }
 
@@ -195,9 +239,29 @@ function keyUp(event) {
 }
 
 function init() {
+	score = 0;
+	player = new Ship(cx/2, cy/2, 10, 20);
+	planets = [];
+	planets.push(new Planet(0, 10, 50, 50, 3, 0.1));
+	icePlanets = [];
+	icePlanets.push(new IcePlanet(0, 80, 50, 50, 5, -0.25));
+	asteroids = [];
+	asteroids.push(new Asteroid(cx-20, 100, 10, 10, -5, 0));
+	solarFlares = [];
+	solarFlares.push(new SolarFlare(cx/2, cy, 10, 10, 0, -20));
+}
+
+function loss() {
+	highScore = score;
+	isNewGame = true;
 }
 
 function update() {
+	if(isNewGame) {
+		init();
+		isNewGame = false;
+	}
+
 	var dx = 0;
 	var dy = 0;
 	if(up) {
@@ -213,18 +277,84 @@ function update() {
 		dx += 10;
 	}
 	player.move(dx, dy);
+	for(var sf = 0; sf < solarFlares.length; sf++) {
+		var currentFlare = solarFlares[sf];
+		currentFlare.move();
+		if(currentFlare.x > cx) {
+			currentFlare.x = 0;
+		} else if(currentFlare.x < 0) {
+			currentFlare.x = cx;
+		}
+		if(currentFlare.y > cy) {
+			currentFlare.y = 0;
+		} else if(currentFlare.y < 0) {
+			currentFlare.y = cy;
+		}
+		if(collide(player.x, player.y, player.width, player.height, currentFlare.x, currentFlare.y, currentFlare.w, currentFlare.h)) {
+			player.hp -= 10;
+		}
+	}
+	for(var ast = 0; ast < asteroids.length; ast++) {
+		var currentAsteroid = asteroids[ast];
+		currentAsteroid.move();
+		if(currentAsteroid.x > cx) {
+			currentAsteroid.x = 0;
+		} else if(currentAsteroid.x < 0) {
+			currentAsteroid.x = cx;
+		}
+		if(currentAsteroid.y > cy) {
+			currentAsteroid.y = 0;
+		} else if(currentAsteroid.y < 0) {
+			currentAsteroid.y = cy;
+		}
+		if(collide(player.x, player.y, player.width, player.height, currentAsteroid.x, currentAsteroid.y, currentAsteroid.w, currentAsteroid.h)) {
+			player.hp -= 5;
+		}
+	}
+	for(var pln = 0; pln < planets.length; pln++) {
+		var currentPlanet = planets[pln];
+		currentPlanet.move();
+		if(currentPlanet.x > cx) {
+			currentPlanet.x = 0;
+		} else if (currentPlanet.x < 0) {
+			currentPlanet.x = cx;
+		}
+		if(currentPlanet.y < 0 || currentPlanet.y > cy) {
+			planets.splice(pln, 1);
+		}
+		if(collide(player.x, player.y, player.width, player.height, currentPlanet.x, currentPlanet.y, currentPlanet.w, currentPlanet.h)) {
+			player.hp -= 30;
+		}
+	}
+	for(var ice = 0; ice < icePlanets.length; ice++) {
+		var currentIce = icePlanets[ice];
+		currentIce.move();
+		if(currentIce.x > cx) {
+			currentIce.x = 0;
+		} else if(currentIce.x < 0) {
+			currentIce.x = cx;
+		}
+		if(currentIce.y < 0 || currentIce.y > cy) {
+			icePlanets.splice(ice, 1);
+		}
+		if(collide(player.x, player.y, player.width, player.height, currentIce.x, currentIce.y, currentIce.w, currentIce.h)) {
+			player.hp -= 40;
+		}
+	}
+	if(player.hp <= 0) {
+		loss();
+	}
+	count++;
+	if(count%10 == 0) {
+		score++;
+	}
 }
 
 function draw() {
 	context.fillStyle = "#000000";
 	context.fillRect(0, 0, cx, cy);
-	context.fillStyle = "#FFFFFF";
-	context.fillText("High Score: " + highScore, 5, 10);
-	context.fillText("Score: " + score, 5, 30);
-
 
 	var sunframe = count%2;
-	var asteroidframe = count%3;
 	for(var w = 0; w < cx/20; w++) {
 		drawSunWhite(w*20, cy-20, 20, 20, sunframe);
 		drawSunYellow(w*20, cy-40, 20, 20, sunframe);
@@ -235,25 +365,43 @@ function draw() {
 	drawShip(player.x, player.y, player.width, player.height);
 
 	if(solarFlares.length > 0) {
-		drawSolarFlare(cx/2, cy/2, 20, 20, sunframe);
+		for(var f = 0; f < solarFlares.length; f++) {
+			var flare = solarFlares[f];
+			drawSolarFlare(flare.x, flare.y, flare.w, flare.h, 0);
+		}
 	}
 
 	if(asteroids.length > 0) {
-		drawAsteroid(cx/5, cy/5, 20, 20, asteroidframe);
+		for(var a = 0; a < asteroids.length; a++) {
+			var asteroid = asteroids[a];
+			drawAsteroid(asteroid.x, asteroid.y, asteroid.w, asteroid.h, 0);
+		}
 	}
 
 	if(planets.length > 0) {
-		drawPlanet(250, 5, 50, 50);
+		for(var p = 0; p < planets.length; p++) {
+			var planet = planets[p];
+			drawPlanet(planet.x, planet.y, planet.w, planet.h);
+		}
 	}
 
 	if(icePlanets.length > 0) {
-		drawIcePlanet(10, 10, 20, 20);
+		for(var i = 0; i < icePlanets.length; i++) {
+			var icePlanet = icePlanets[i];
+			drawIcePlanet(icePlanet.x, icePlanet.y, icePlanet.w, icePlanet.h);
+		}
 	}
 
-	count++;
-	if(count%10 == 0) {
-		score++;
-	}
+	context.fillStyle = "#FFFFFF";
+	context.fillText("High Score: " + highScore, 5, 10);
+	context.fillText("Ship Integrity: ", 5, 20);
+	if(player.hp > 75) { context.fillStyle = "#00FF00"; }
+	else if(player.hp > 50) { context.fillStyle = "#FFFF00"; }
+	else if(player.hp > 25) { context.fillStyle = "#FF8800"; }
+	else { context.fillStyle = "#FF0000"; }
+	context.fillRect(55, 12, 50/100*player.hp, 10);
+	context.fillStyle = "#FFFFFF";
+	context.fillText("Score: " + score, 5, 30);
 }
 
 var drawloop = setInterval(function(){update(); draw();}, 50);
