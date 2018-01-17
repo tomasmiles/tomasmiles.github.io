@@ -37,6 +37,7 @@ function Ship(x, y, w, h) {
 	this.width = w;
 	this.height = h;
 	this.hp = 100;
+	this.frame = 0;
 	this.move = function(mx, my) {
 		var newX = this.x + mx;
 		if(newX > cx) {
@@ -110,6 +111,7 @@ function SolarFlare(x, y, w, h, vx, vy) {
 	this.h = h;
 	this.vx = vx;
 	this.vy = vy;
+	this.frame = 0;
 
 	this.move = function() {
 		var newCoords = translate(this.x, this.y, this.vx, this.vy);
@@ -182,8 +184,16 @@ function drawAsteroid(x, y, width, height, frame) {
 	}
 }
 
-function drawShip(x, y, width, height) {
-	context.drawImage(images, 40, 10, 10, 20, x, y, width, height);
+function drawShip(x, y, width, height, frame) {
+	switch(frame) {
+		case 0: context.drawImage(images, 40, 10, 10, 20, x, y, width, height);
+		break;
+		case 1: context.drawImage(images, 90, 10, 10, 20, x, y, width, height);
+		break;
+		case 2: context.drawImage(images, 0, 20, 10, 10, x, y, width, height/2);
+		context.drawImage(images, 0, 20, 10, 10, x, y+height/2, width, height/2);
+		break;
+	}
 }
 
 function drawPlanet(x, y, width, height) {
@@ -242,13 +252,12 @@ function init() {
 	score = 0;
 	player = new Ship(cx/2, cy/2, 10, 20);
 	planets = [];
-	planets.push(new Planet(0, 10, 50, 50, 3, 0.1));
+	planets.push(new Planet(0, 10, 50, 50, 3, 0));
 	icePlanets = [];
-	icePlanets.push(new IcePlanet(0, 80, 50, 50, 5, -0.25));
+	icePlanets.push(new IcePlanet(0, 150, 50, 50, -2, 0));
 	asteroids = [];
 	asteroids.push(new Asteroid(cx-20, 100, 10, 10, -5, 0));
 	solarFlares = [];
-	solarFlares.push(new SolarFlare(cx/2, cy, 10, 10, 0, -20));
 }
 
 function loss() {
@@ -277,9 +286,23 @@ function update() {
 		dx += 10;
 	}
 	player.move(dx, dy);
+	if(player.y+player.height > cy-80) {
+		player.hp --;
+	}
+	if(Math.random() > 0.95) {
+		solarFlares.push(new SolarFlare(Math.random()*cx, cy, 10, 10, 0, -10));
+	}
+	if(solarFlares.length > 10) {
+		solarFlares = [];
+	}
 	for(var sf = 0; sf < solarFlares.length; sf++) {
 		var currentFlare = solarFlares[sf];
 		currentFlare.move();
+		if(currentFlare.y < cy/2) {
+			currentFlare.frame = 1;
+		} else {
+			currentFlare.frame = 0;
+		}
 		if(currentFlare.x > cx) {
 			currentFlare.x = 0;
 		} else if(currentFlare.x < 0) {
@@ -293,6 +316,19 @@ function update() {
 		if(collide(player.x, player.y, player.width, player.height, currentFlare.x, currentFlare.y, currentFlare.w, currentFlare.h)) {
 			player.hp -= 10;
 		}
+	}
+	for(var deadFlare = 0; deadFlare < solarFlares.length; deadFlare++) {
+		if(solarFlares[deadFlare].y < 0) {
+			solarFlares.splice(deadFlare, 1);
+		}
+	}
+
+	if(Math.random() > 0.99 && asteroids.length < 10) {
+		var entryX = 0;
+		var newSize = 5+Math.random()+30;
+		if(Math.random > 0.5) { entryX = cx; }
+		asteroids.push(new Asteroid(entryX, Math.random()*cy, newSize, newSize, 
+		(Math.random()-0.5)*20, (Math.random()-0.5)*20));
 	}
 	for(var ast = 0; ast < asteroids.length; ast++) {
 		var currentAsteroid = asteroids[ast];
@@ -323,7 +359,7 @@ function update() {
 			planets.splice(pln, 1);
 		}
 		if(collide(player.x, player.y, player.width, player.height, currentPlanet.x, currentPlanet.y, currentPlanet.w, currentPlanet.h)) {
-			player.hp -= 30;
+			player.hp -= 20;
 		}
 	}
 	for(var ice = 0; ice < icePlanets.length; ice++) {
@@ -338,7 +374,7 @@ function update() {
 			icePlanets.splice(ice, 1);
 		}
 		if(collide(player.x, player.y, player.width, player.height, currentIce.x, currentIce.y, currentIce.w, currentIce.h)) {
-			player.hp -= 40;
+			player.hp -= 20;
 		}
 	}
 	if(player.hp <= 0) {
@@ -362,12 +398,12 @@ function draw() {
 		drawSunRed(w*20, cy-80, 20, 20, sunframe);
 	}
 
-	drawShip(player.x, player.y, player.width, player.height);
+	drawShip(player.x, player.y, player.width, player.height, player.frame);
 
 	if(solarFlares.length > 0) {
 		for(var f = 0; f < solarFlares.length; f++) {
 			var flare = solarFlares[f];
-			drawSolarFlare(flare.x, flare.y, flare.w, flare.h, 0);
+			drawSolarFlare(flare.x, flare.y, flare.w, flare.h, flare.frame);
 		}
 	}
 
@@ -396,9 +432,15 @@ function draw() {
 	context.fillText("High Score: " + highScore, 5, 10);
 	context.fillText("Ship Integrity: ", 5, 20);
 	if(player.hp > 75) { context.fillStyle = "#00FF00"; }
-	else if(player.hp > 50) { context.fillStyle = "#FFFF00"; }
+	else if(player.hp > 50) {
+		context.fillStyle = "#FFFF00";
+		player.frame = 1;
+	}
 	else if(player.hp > 25) { context.fillStyle = "#FF8800"; }
-	else { context.fillStyle = "#FF0000"; }
+	else {
+		context.fillStyle = "#FF0000";
+		player.frame = 2;
+	}
 	context.fillRect(55, 12, 50/100*player.hp, 10);
 	context.fillStyle = "#FFFFFF";
 	context.fillText("Score: " + score, 5, 30);
