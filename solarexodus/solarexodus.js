@@ -6,6 +6,16 @@ window.addEventListener("keyup", keyUp);
 var context = canvas.getContext("2d");
 context.imageSmoothingEnabled = false;
 context.font = "8px Tahoma";
+
+var audioContext = new AudioContext();
+var arrayBuffer = audioContext.createBuffer(2, audioContext.sampleRate * 0.5, audioContext.sampleRate);
+for(var channel = 0; channel < arrayBuffer.numberOfChannels; channel++) {
+	var nowBuffering = arrayBuffer.getChannelData(channel);
+	for(var i = 0; i < arrayBuffer.length; i++) {
+	nowBuffering[i] = Math.random() * 2 - 1;
+	}
+}
+
 var images = document.getElementById("images");
 
 var cx = canvas.width;
@@ -56,6 +66,18 @@ function Ship(x, y, w, h) {
 		} else {
 			this.y = newY;
 		}
+	}
+	this.collisionNoise = audioContext.createBufferSource();
+	this.collisionNoise.buffer = arrayBuffer;
+	this.collisionNoise.loop = true;
+	this.gain = audioContext.createGain();
+	this.collisionNoise.connect(this.gain);
+	this.gain.connect(audioContext.destination);
+	this.gain.gain.value = 0;
+	this.collisionNoise.start();
+
+	this.setGain = function(newGain) {
+		this.gain.gain.value = newGain;
 	}
 }
 
@@ -265,6 +287,7 @@ function loss() {
 		highScore = score;
 	}
 	isNewGame = true;
+	player.collisionNoise.stop();
 }
 
 function update() {
@@ -272,6 +295,7 @@ function update() {
 		init();
 		isNewGame = false;
 	}
+	var collidedWithSomething = false;
 
 	var dx = 0;
 	var dy = 0;
@@ -290,6 +314,7 @@ function update() {
 	player.move(dx, dy);
 	if(player.y+player.height > cy-80) {
 		player.hp --;
+		collidedWithSomething = true;
 	}
 	if(Math.random() > 0.95) {
 		solarFlares.push(new SolarFlare(Math.random()*cx, cy, 10, 10, 0, -10));
@@ -317,6 +342,7 @@ function update() {
 		}
 		if(collide(player.x, player.y, player.width, player.height, currentFlare.x, currentFlare.y, currentFlare.w, currentFlare.h)) {
 			player.hp -= 10;
+			collidedWithSomething = true;
 		}
 	}
 	for(var deadFlare = 0; deadFlare < solarFlares.length; deadFlare++) {
@@ -347,6 +373,7 @@ function update() {
 		}
 		if(collide(player.x, player.y, player.width, player.height, currentAsteroid.x, currentAsteroid.y, currentAsteroid.w, currentAsteroid.h)) {
 			player.hp -= 5;
+			collidedWithSomething = true;
 		}
 	}
 	for(var pln = 0; pln < planets.length; pln++) {
@@ -362,6 +389,7 @@ function update() {
 		}
 		if(collide(player.x, player.y, player.width, player.height, currentPlanet.x, currentPlanet.y, currentPlanet.w, currentPlanet.h)) {
 			player.hp -= 20;
+			collidedWithSomething = true;
 		}
 	}
 	for(var ice = 0; ice < icePlanets.length; ice++) {
@@ -377,7 +405,13 @@ function update() {
 		}
 		if(collide(player.x, player.y, player.width, player.height, currentIce.x, currentIce.y, currentIce.w, currentIce.h)) {
 			player.hp -= 20;
+			collidedWithSomething = true;
 		}
+	}
+	if(collidedWithSomething) {
+		player.setGain(0.5);
+	} else {
+		player.setGain(0);
 	}
 	if(player.hp <= 0) {
 		loss();
