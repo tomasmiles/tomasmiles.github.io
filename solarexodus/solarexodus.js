@@ -272,6 +272,7 @@ function keyUp(event) {
 
 function init() {
 	score = 0;
+	player.collisionNoise.stop();
 	player = new Ship(cx/2, cy/2, 10, 20);
 	planets = [];
 	planets.push(new Planet(0, 10, 50, 50, 3, 0));
@@ -287,7 +288,6 @@ function loss() {
 		highScore = score;
 	}
 	isNewGame = true;
-	player.collisionNoise.stop();
 }
 
 function update() {
@@ -296,6 +296,7 @@ function update() {
 		isNewGame = false;
 	}
 	var collidedWithSomething = false;
+	player.setGain(0);
 
 	var dx = 0;
 	var dy = 0;
@@ -409,7 +410,7 @@ function update() {
 		}
 	}
 	if(collidedWithSomething) {
-		player.setGain(0.5);
+		player.setGain(0.25);
 	} else {
 		player.setGain(0);
 	}
@@ -482,4 +483,63 @@ function draw() {
 	context.fillText("Score: " + score, 5, 30);
 }
 
+var beatCount = 1;
+
+function countBeat() {
+	beatCount++;
+	if(beatCount%5 == 0) {
+		beatCount = 1;
+	}
+	console.log(beatCount);
+}
+
+function playBeat() {
+	if(beatCount%2 == 1) {
+		beat();
+	} else {
+		offBeat();
+	}
+}
+
+function beat() {
+	var kickOsc = audioContext.createOscillator();
+	kickOsc.type = 'sine';
+	var kickGain = audioContext.createGain();
+	kickGain.gain.value = 0;
+	kickOsc.connect(kickGain);
+	kickGain.connect(audioContext.destination);
+	kickOsc.start();
+	kickOsc.frequency.setValueAtTime((Math.random()*200)+60, audioContext.currentTime);
+	kickOsc.frequency.linearRampToValueAtTime(0, audioContext.currentTime+0.5);
+	kickGain.gain.linearRampToValueAtTime(0.9, audioContext.currentTime+0.01);
+	kickGain.gain.linearRampToValueAtTime(0, audioContext.currentTime+0.3);
+	kickOsc.stop(audioContext.currentTime+0.3);
+}
+
+function offBeat() {
+	var bassOsc = audioContext.createOscillator();
+	bassOsc.type = 'sine';
+	bassOsc.frequency.setValueAtTime(100+Math.random()*100, audioContext.currentTime);
+	var midOsc = audioContext.createOscillator();
+	midOsc.type = 'sine';
+	midOsc.frequency.setValueAtTime(133+Math.random()*133, audioContext.currentTime);
+	var trebOsc = audioContext.createOscillator();
+	trebOsc.type = 'sine';
+	trebOsc.frequency.setValueAtTime(166+Math.random()*166, audioContext.currentTime);
+	var chordGain = audioContext.createGain();
+	chordGain.gain.value = 0.2;
+	bassOsc.connect(chordGain);
+	midOsc.connect(chordGain);
+	trebOsc.connect(chordGain);
+	chordGain.connect(audioContext.destination);
+	bassOsc.start();
+	midOsc.start();
+	trebOsc.start();
+	bassOsc.stop(audioContext.currentTime+0.5);
+	midOsc.stop(audioContext.currentTime+0.5);
+	trebOsc.stop(audioContext.currentTime+0.5);
+}
+
 var drawloop = setInterval(function(){update(); draw();}, 50);
+var beatDivision = 1;
+var beatloop = setInterval(function(){countBeat();playBeat();},60/(120*beatDivision)*1000);
