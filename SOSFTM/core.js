@@ -6,4 +6,7 @@ window.addEventListener('pointerup', pointerup);
 window.addEventListener('pointermove', pointermove);
 
 resize();
-var loop = setInterval(function(){draw();}, 50);
+//draw() from graphics.js
+//update() from game.js
+
+var loop = setInterval(function(){update();draw();}, 50);
